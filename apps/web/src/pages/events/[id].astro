@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import EventLocationMap from '../../components/EventLocationMap.astro';
+import EventVirtualRoom from '../../components/EventVirtualRoom.astro';
 import type { EventModality } from '../../domain/events/event.types';
 import { eventRepository } from '../../infrastructure/db/in-memory-event.repository';
 
@@ -45,6 +46,8 @@ const pageDescription = event
   : 'El evento que buscas no existe o ya no está disponible en Eventify.';
 
 const availableSeats = event ? Math.max(0, event.capacity - event.registeredCount) : 0;
+const showVirtualRoom = event ? event.modality === 'remoto' || event.modality === 'hibrido' : false;
+const showLocationMap = event ? event.modality === 'presencial' || event.modality === 'hibrido' : false;
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
@@ -132,7 +135,8 @@ const availableSeats = event ? Math.max(0, event.capacity - event.registeredCoun
           </dl>
         </header>
 
-        <EventLocationMap event={event} />
+        {showVirtualRoom && <EventVirtualRoom event={event} />}
+        {showLocationMap && <EventLocationMap event={event} />}
       </article>
     )}
   </div>

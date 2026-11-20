@@ -1,0 +1,269 @@
+---
+import type { EventItem, EventStreamStatus } from '../domain/events/event.types';
+import type { StreamingProvider } from '../domain/streaming/streaming-provider';
+import { streamingProvider as defaultStreamingProvider } from '../infrastructure/streaming/open-streaming.provider';
+
+interface Props {
+  event: EventItem;
+  provider?: StreamingProvider;
+}
+
+const { event, provider = defaultStreamingProvider } = Astro.props;
+
+const virtualAccess = event.virtualAccess;
+const streamData = virtualAccess ? provider.resolveStreamData(virtualAccess) : null;
+const status: EventStreamStatus | null = virtualAccess?.status ?? null;
+
+const statusConfig: Record<
+  EventStreamStatus,
+  { label: string; badgeClass: string; dotClass: string }
+> = {
+  'en-vivo': {
+    label: 'En vivo',
+    badgeClass: 'bg-rose-50 text-rose-800 ring-rose-200',
+    dotClass: 'bg-rose-600',
+  },
+  proximo: {
+    label: 'Próximo',
+    badgeClass: 'bg-sky-50 text-sky-800 ring-sky-200',
+    dotClass: 'bg-sky-600',
+  },
+  finalizado: {
+    label: 'Finalizado',
+    badgeClass: 'bg-slate-100 text-slate-700 ring-slate-200',
+    dotClass: 'bg-slate-500',
+  },
+};
+
+function formatDate(dateIso: string): string {
+  return new Intl.DateTimeFormat('es-419', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(new Date(dateIso));
+}
+
+const canShowEmbedFacade = Boolean(
+  streamData?.canEmbed &&
+    streamData.embedUrl &&
+    (status === 'en-vivo' || (status === 'finalizado' && streamData.platform === 'youtube'))
+);
+
+const facadeButtonLabel =
+  status === 'finalizado'
+    ? 'Reproducir grabación'
+    : streamData?.platform === 'jitsi'
+      ? 'Entrar a la sala interactiva'
+      : 'Cargar transmisión en vivo';
+
+const iframeTitle =
+  status === 'finalizado'
+    ? `Grabación del evento: ${event.title}`
+    : `Transmisión en vivo: ${event.title}`;
+
+const externalActionLabel =
+  status === 'proximo'
+    ? `Abrir enlace anticipado en ${streamData?.providerName ?? 'plataforma externa'}`
+    : status === 'finalizado'
+      ? `Ver en ${streamData?.providerName ?? 'plataforma externa'}`
+      : `Abrir en ${streamData?.providerName ?? 'plataforma externa'}`;
+---
+
+<section
+  aria-labelledby="titulo-sala-virtual"
+  class="event-virtual-room-container rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6"
+>
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+    <div class="flex flex-wrap items-center gap-2.5">
+      <h2 id="titulo-sala-virtual" class="text-xl font-bold tracking-tight text-slate-900">
+        {event.modality === 'remoto' ? 'Sala virtual y transmisión' : 'Acceso remoto y transmisión'}
+      </h2>
+      {status && (
+        <span
+          class:list={[
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold ring-1 ring-inset',
+            statusConfig[status].badgeClass,
+          ]}
+        >
+          <span
+            aria-hidden="true"
+            class:list={['h-2 w-2 rounded-full', statusConfig[status].dotClass]}
+          />
+          <span>{statusConfig[status].label}</span>
+        </span>
+      )}
+    </div>
+
+    <span class="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-inset ring-sky-200">
+      {streamData ? `${streamData.providerName} · $0` : 'Acceso remoto'}
+    </span>
+  </div>
+
+  {streamData && status ? (
+    <div class="space-y-5">
+      {canShowEmbedFacade && streamData.embedUrl ? (
+        <div
+          class="virtual-stream-stage aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-900 text-white"
+          data-stream-facade
+          data-embed-url={streamData.embedUrl}
+          data-iframe-title={iframeTitle}
+          data-iframe-sandbox={streamData.iframeSandbox ?? ''}
+          data-iframe-allow={streamData.iframeAllow ?? ''}
+        >
+          <div class="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-inset ring-white/25">
+              {status === 'en-vivo' ? 'Transmisión lista para cargar' : 'Grabación disponible bajo demanda'}
+            </span>
+            <p class="max-w-lg text-base sm:text-lg font-bold leading-snug text-white">
+              {event.title}
+            </p>
+            <p class="max-w-md text-xs sm:text-sm text-slate-200 leading-relaxed">
+              {streamData.privacyNotice}
+            </p>
+            <button
+              type="button"
+              data-load-stream
+              class="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-xs hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <span aria-hidden="true">▶</span>
+              <span>{facadeButtonLabel}</span>
+            </button>
+          </div>
+        </div>
+      ) : status === 'proximo' ? (
+        <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-5 space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-sky-800">
+            Sala de espera previa al evento
+          </p>
+          <p class="text-base font-semibold text-slate-900">
+            La transmisión comenzará el{' '}
+            <time datetime={event.dateIso}>{formatDate(event.dateIso)}</time>
+          </p>
+          <p class="text-sm text-slate-700 leading-relaxed">
+            Horario oficial de referencia:{' '}
+            <strong class="font-semibold text-slate-900">{event.timezone}</strong>. Cuando el evento
+            pase a estado <strong>En vivo</strong>, podrás cargar la sala directamente aquí o
+            ingresar desde el enlace externo de respaldo.
+          </p>
+        </div>
+      ) : status === 'finalizado' ? (
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Transmisión finalizada
+          </p>
+          <p class="text-sm text-slate-700 leading-relaxed">
+            Este evento virtual ya concluyó. Puedes consultar la plataforma externa para revisar
+            materiales o novedades posteriores.
+          </p>
+        </div>
+      ) : (
+        <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-5 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-sky-800">
+            Acceso directo en plataforma externa
+          </p>
+          <p class="text-sm text-slate-700 leading-relaxed">
+            Esta transmisión se realiza directamente en{' '}
+            <strong class="font-semibold text-slate-900">{streamData.providerName}</strong>. Usa el
+            enlace seguro para ingresar a la sala.
+          </p>
+        </div>
+      )}
+
+      <div class="virtual-room-meta grid grid-cols-1 gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4 text-sm">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Plataforma y acceso
+          </p>
+          <p class="mt-1 font-semibold text-slate-900">
+            {streamData.providerName} · {event.location}
+          </p>
+          {virtualAccess?.accessNotes && (
+            <p class="mt-1 text-slate-700 leading-relaxed">{virtualAccess.accessNotes}</p>
+          )}
+        </div>
+
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Zona horaria LATAM
+          </p>
+          <p class="mt-1 font-semibold text-slate-900">{event.timezone}</p>
+          <p class="mt-1 text-xs text-slate-600">
+            Fecha programada: <time datetime={event.dateIso}>{formatDate(event.dateIso)}</time>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <a
+          href={streamData.externalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+        >
+          {externalActionLabel}
+        </a>
+        <p class="text-xs text-slate-500">{streamData.privacyNotice}</p>
+      </div>
+    </div>
+  ) : (
+    <div class="rounded-xl border border-sky-200 bg-sky-50/60 p-5 space-y-2">
+      <p class="text-xs font-semibold uppercase tracking-wide text-sky-800">
+        {event.modality === 'remoto' ? 'Experiencia 100% remota' : 'Participación remota disponible'}
+      </p>
+      <p class="text-base font-semibold text-slate-900">{event.location}</p>
+      <p class="text-sm text-slate-700 leading-relaxed">
+        Horario oficial de referencia:{' '}
+        <strong class="font-semibold text-slate-900">{event.timezone}</strong>. El enlace de
+        transmisión estará disponible próximamente en esta página.
+      </p>
+    </div>
+  )}
+
+  <details class="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-700">
+    <summary class="cursor-pointer font-semibold text-slate-900">
+      Recomendaciones técnicas de conexión
+    </summary>
+    <ul class="mt-3 list-disc space-y-1.5 pl-5 text-slate-700">
+      <li>Conéctate 10 minutos antes del horario indicado en {event.timezone} para validar tu hora local en LATAM.</li>
+      <li>Si tu red corporativa bloquea reproductores embebidos, utiliza el botón de acceso externo verificado por HTTPS.</li>
+      <li>En sesiones interactivas, usa auriculares y verifica permisos de micrófono y cámara antes de entrar.</li>
+    </ul>
+  </details>
+</section>
+
+<script>
+  const facadeContainers = document.querySelectorAll<HTMLElement>('[data-stream-facade]');
+
+  for (const container of facadeContainers) {
+    const loadButton = container.querySelector<HTMLButtonElement>('[data-load-stream]');
+    if (!loadButton) {
+      continue;
+    }
+
+    loadButton.addEventListener('click', () => {
+      const embedUrl = container.dataset.embedUrl ?? '';
+      if (!embedUrl.startsWith('https://')) {
+        return;
+      }
+
+      const iframe = document.createElement('iframe');
+      iframe.src = embedUrl;
+      iframe.title = container.dataset.iframeTitle || 'Transmisión virtual del evento';
+      iframe.className = 'h-full w-full border-0';
+      iframe.loading = 'lazy';
+      iframe.referrerPolicy = 'no-referrer';
+      iframe.allowFullscreen = true;
+
+      const sandboxValue = container.dataset.iframeSandbox?.trim();
+      if (sandboxValue) {
+        iframe.setAttribute('sandbox', sandboxValue);
+      }
+
+      const allowValue = container.dataset.iframeAllow?.trim();
+      if (allowValue) {
+        iframe.allow = allowValue;
+      }
+
+      container.replaceChildren(iframe);
+    });
+  }
+</script>
