@@ -7,6 +7,7 @@
     "dev": "pnpm --filter @eventify/web dev",
     "dev:web": "pnpm --filter @eventify/web dev",
     "build": "pnpm -r build",
-    "check": "pnpm -r check"
+    "check": "pnpm -r check",
+    "tokens": "node .agents/hooks/show-session-tokens.mjs"
   }
 }

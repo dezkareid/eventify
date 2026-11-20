@@ -140,11 +140,22 @@ function saveStoreAtomically(store) {
   fs.renameSync(tempPath, METRICS_FILE);
 }
 
+function formatNumber(n) {
+  return new Intl.NumberFormat('es-419').format(toSafeNumber(n));
+}
+
 async function main() {
+  let hookEventName = 'Stop';
+  let latestStats = null;
+
   try {
     const stdinRaw = await readStdin();
     if (stdinRaw) {
       const payload = JSON.parse(stdinRaw);
+      if (typeof payload.hookEventName === 'string' && payload.hookEventName) {
+        hookEventName = payload.hookEventName;
+      }
+
       const conversationId =
         typeof payload.conversationId === 'string' && payload.conversationId.trim()
           ? payload.conversationId.trim()
@@ -162,18 +173,37 @@ async function main() {
           conversationId,
           modelName: typeof payload.modelName === 'string' ? payload.modelName : 'unknown',
           terminationReason:
-            typeof payload.terminationReason === 'string' ? payload.terminationReason : 'UNKNOWN',
+            typeof payload.terminationReason === 'string' ? payload.terminationReason : hookEventName,
           ...stats,
           updatedAt: new Date().toISOString(),
         };
 
         store.summary = recomputeSummary(store.sessions);
         saveStoreAtomically(store);
+        latestStats = stats;
       }
     }
   } catch (error) {
-    // Never block the agent Stop lifecycle; log diagnostics only to stderr
+    // Never block the agent lifecycle; log diagnostics only to stderr
     process.stderr.write(`[session-token-tracker] ${error instanceof Error ? error.message : String(error)}\n`);
+  }
+
+  if (hookEventName === 'PostInvocation') {
+    const injectSteps = latestStats
+      ? [
+          {
+            systemMessage: {
+              systemMessage: '',
+              metadata: {
+                user_markdown: `**Tokens de esta sesión:** \`${formatNumber(latestStats.totalTokens)}\` total (\`${formatNumber(latestStats.inputTokens)}\` input · \`${formatNumber(latestStats.outputTokens)}\` output · \`${formatNumber(latestStats.cacheReadTokens)}\` cache read · ${latestStats.plannerTurns} turnos)`,
+              },
+            },
+          },
+        ]
+      : [];
+
+    process.stdout.write(`${JSON.stringify({ injectSteps })}\n`);
+    return;
   }
 
   process.stdout.write(`${JSON.stringify({ decision: 'allow' })}\n`);

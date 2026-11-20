@@ -1,5 +1,12 @@
 {
   "session-token-tracker": {
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "node ./hooks/track-session-tokens.mjs",
+        "timeout": 10
+      }
+    ],
     "Stop": [
       {
         "type": "command",
