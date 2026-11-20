@@ -56,3 +56,13 @@
 .event-location-container {
   container-type: inline-size;
 }
+
+.event-virtual-room-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 34rem) {
+  .event-virtual-room-container .virtual-room-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,6 +1,7 @@
 import type { EventRepository } from '../../domain/events/event.repository';
 import {
   isValidGeoCoordinates,
+  isValidVirtualAccess,
   type CreateEventInput,
   type EventFilter,
   type EventItem,
@@ -27,6 +28,15 @@ const SEED_EVENTS: EventItem[] = [
       longitude: -58.4109,
       address: 'Sarmiento 3131, C1196AAG Buenos Aires, Argentina',
     },
+    virtualAccess: {
+      platform: 'youtube',
+      platformLabel: 'YouTube Live',
+      status: 'en-vivo',
+      roomOrVideoId: 'jfKfPfyJRdk',
+      externalUrl: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
+      accessNotes:
+        'Transmision abierta en HD con subtitulos automaticos y moderacion de preguntas por el equipo de Ops.',
+    },
   },
   {
     id: 'evt-ux-latam-remoto',
@@ -43,6 +53,15 @@ const SEED_EVENTS: EventItem[] = [
     priceUsd: 25,
     capacity: 250,
     registeredCount: 190,
+    virtualAccess: {
+      platform: 'jitsi',
+      platformLabel: 'Jitsi Meet (Eventify Live)',
+      status: 'proximo',
+      roomOrVideoId: 'eventify-ux-latam-2026',
+      externalUrl: 'https://meet.jit.si/eventify-ux-latam-2026',
+      accessNotes:
+        'La sala interactiva abre 10 minutos antes del inicio. Recomendamos usar auriculares y verificar audio y video antes de ingresar.',
+    },
   },
   {
     id: 'evt-fintech-bogota',
@@ -85,11 +104,24 @@ const SEED_EVENTS: EventItem[] = [
       longitude: -99.1677,
       address: 'Av. Paseo de la Reforma 222, Juarez, Cuauhtemoc, 06600 Ciudad de Mexico, Mexico',
     },
+    virtualAccess: {
+      platform: 'youtube',
+      platformLabel: 'YouTube',
+      status: 'finalizado',
+      roomOrVideoId: 'aqz-KE-bpKQ',
+      externalUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+      accessNotes:
+        'La transmision en vivo concluyo. Puedes reproducir la grabacion completa bajo demanda desde esta sala.',
+    },
   },
 ];
 
 function cloneEvent(item: EventItem): EventItem {
-  return item.geo ? { ...item, geo: { ...item.geo } } : { ...item };
+  return {
+    ...item,
+    ...(item.geo ? { geo: { ...item.geo } } : {}),
+    ...(item.virtualAccess ? { virtualAccess: { ...item.virtualAccess } } : {}),
+  };
 }
 
 class InMemoryEventRepository implements EventRepository {
@@ -129,6 +161,22 @@ class InMemoryEventRepository implements EventRepository {
           }
         : undefined;
 
+    const sanitizedVirtualAccess =
+      input.virtualAccess && isValidVirtualAccess(input.virtualAccess)
+        ? {
+            platform: input.virtualAccess.platform,
+            platformLabel: input.virtualAccess.platformLabel.trim(),
+            status: input.virtualAccess.status,
+            externalUrl: input.virtualAccess.externalUrl.trim(),
+            ...(input.virtualAccess.roomOrVideoId?.trim()
+              ? { roomOrVideoId: input.virtualAccess.roomOrVideoId.trim() }
+              : {}),
+            ...(input.virtualAccess.accessNotes?.trim()
+              ? { accessNotes: input.virtualAccess.accessNotes.trim() }
+              : {}),
+          }
+        : undefined;
+
     const created: EventItem = {
       id,
       title: input.title.trim(),
@@ -144,6 +192,7 @@ class InMemoryEventRepository implements EventRepository {
       capacity: Math.max(1, Math.floor(input.capacity)),
       registeredCount: 0,
       ...(sanitizedGeo ? { geo: sanitizedGeo } : {}),
+      ...(sanitizedVirtualAccess ? { virtualAccess: sanitizedVirtualAccess } : {}),
     };
 
     this.events.unshift(created);

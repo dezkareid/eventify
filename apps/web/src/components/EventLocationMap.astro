@@ -11,7 +11,6 @@ interface Props {
 const { event, provider = defaultMapProvider } = Astro.props;
 
 const isPhysicalOrHybrid = event.modality === 'presencial' || event.modality === 'hibrido';
-const isRemoteOrHybrid = event.modality === 'remoto' || event.modality === 'hibrido';
 
 const mapData =
   isPhysicalOrHybrid && event.geo ? provider.resolveMapData(event.geo) : null;
@@ -24,11 +23,7 @@ const fallbackSearch =
   isPhysicalOrHybrid && !mapData ? provider.resolveFallbackSearchUrl(fallbackQuery) : null;
 
 const headingText =
-  event.modality === 'remoto'
-    ? 'Acceso remoto'
-    : event.modality === 'hibrido'
-      ? 'Ubicación presencial y acceso remoto'
-      : 'Ubicación del evento';
+  event.modality === 'hibrido' ? 'Ubicación presencial (sede)' : 'Ubicación del evento';
 ---
 
 <section
@@ -125,26 +120,6 @@ const headingText =
           )}
         </div>
       )}
-    </div>
-  )}
-
-  {isRemoteOrHybrid && (
-    <div
-      class:list={[
-        'rounded-xl border border-sky-200 bg-sky-50/60 p-5 space-y-2',
-        isPhysicalOrHybrid ? 'mt-2' : '',
-      ]}
-    >
-      <p class="text-xs font-semibold uppercase tracking-wide text-sky-800">
-        {event.modality === 'remoto' ? 'Experiencia 100% remota' : 'Participación remota disponible'}
-      </p>
-      <p class="text-base font-semibold text-slate-900">
-        {event.location}
-      </p>
-      <p class="text-sm text-slate-700 leading-relaxed">
-        Horario oficial de referencia: <strong class="font-semibold text-slate-900">{event.timezone}</strong>.
-        Te recomendamos conectarte 10 minutos antes del inicio para verificar audio, video y tu zona horaria local en LATAM.
-      </p>
     </div>
   )}
 </section>

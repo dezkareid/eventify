@@ -22,13 +22,13 @@ Para el desglose formal por niveles (Contexto, Contenedores y Componentes), cons
 
 ## 2. Arquitectura en Capas (Orientada a *Portability*)
 
-La interfaz web y los endpoints de Astro nunca acceden directamente a la implementación concreta de almacenamiento ni a SDKs propietarios de terceros. Toda interacción pasa por contratos en `src/domain/` (`EventRepository`, `MapProvider`), permitiendo reemplazar la **In-Memory Database** por PostgreSQL/LibSQL o intercambiar el proveedor de mapas (por defecto **OpenStreetMap** gratuito y sin API key) sin tocar las vistas.
+La interfaz web y los endpoints de Astro nunca acceden directamente a la implementación concreta de almacenamiento ni a SDKs propietarios de terceros. Toda interacción pasa por contratos en `src/domain/` (`EventRepository`, `MapProvider`, `StreamingProvider`), permitiendo reemplazar la **In-Memory Database** por PostgreSQL/LibSQL, intercambiar el proveedor de mapas (por defecto **OpenStreetMap** gratuito y sin API key) o cambiar el proveedor de streaming (por defecto **YouTube No-Cookie / Jitsi Meet** gratuito y sin API key) sin tocar las vistas.
 
 ```mermaid
 flowchart TB
     subgraph UI["Capa de Presentacion (Astro + Tailwind CSS)"]
-        Pages["Paginas SSR (src/pages/*.astro, events/[id].astro)"]
-        Components["Componentes UI (src/components/EventLocationMap.astro)"]
+        Pages["Paginas SSR (src/pages/index.astro, events/[id].astro)"]
+        Components["Componentes UI (EventLocationMap.astro, EventVirtualRoom.astro)"]
         Layouts["Layouts Semanticos (src/layouts/)"]
         API["Server Endpoints (src/pages/api/*)"]
     end
@@ -37,21 +37,26 @@ flowchart TB
         Types["Entidades y Tipos (event.types.ts)"]
         RepoPort["Puerto: EventRepository (event.repository.ts)"]
         MapPort["Puerto: MapProvider (map-provider.ts)"]
+        StreamPort["Puerto: StreamingProvider (streaming-provider.ts)"]
     end
 
     subgraph Infra["Capa de Infraestructura (Intercambiable)"]
         InMem["InMemoryEventRepository (in-memory-event.repository.ts)"]
         MapAdapters["OpenStreetMapEmbedProvider (openstreetmap.provider.ts)"]
+        StreamAdapters["OpenStreamingEmbedProvider (open-streaming.provider.ts)"]
     end
 
     Pages --> Layouts
     Pages --> Components
     Pages --> RepoPort
     Components --> MapPort
+    Components --> StreamPort
     API --> RepoPort
     RepoPort -. "implementado por" .-> InMem
     MapPort -. "implementado por" .-> MapAdapters
+    StreamPort -. "implementado por" .-> StreamAdapters
     InMem --> Types
+    StreamAdapters --> Types
 ```
 
 ---
@@ -60,6 +65,6 @@ flowchart TB
 
 | Atributo (*Ility*) | Objetivo en Eventify | Decisiones Arquitectónicas | Cómo se Verifica |
 | :--- | :--- | :--- | :--- |
-| **Security** | Proteger usuarios, organizadores y datos de eventos | Validación estricta en APIs, sanitización de entradas, cabeceras seguras (`X-Content-Type-Options: nosniff`), cero `set:html` no confiable | Revisión de código + auditoría con `chrome-verifier` |
-| **Usability** | Experiencias fluidas, accesibles y claras (presencial y remoto) | HTML5 semántico, WCAG 2.1 AA, Tailwind CSS responsive, estándares vía `modern-web-guidance`, optimización de CWV | Snapshot a11y, flujos reales y capturas con `chrome-verifier` |
-| **Portability** | Evitar lock-in tecnológico y facilitar escalado en LATAM | Interfaces de repositorio (`EventRepository`), estándares web nativos, Astro + `@astrojs/node`, `pnpm` | Inspección de dependencias y separación `domain/` vs `infrastructure/` |
+| **Security** | Proteger usuarios, organizadores y datos de eventos | Validación estricta en APIs y dominio, allowlist HTTPS en `MapProvider`/`StreamingProvider`, `<iframe>` con `sandbox` y `referrerpolicy="no-referrer"`, cabeceras seguras (`X-Content-Type-Options: nosniff`), cero `set:html` no confiable | Revisión de código + auditoría con `chrome-verifier` |
+| **Usability** | Experiencias fluidas, accesibles y claras (presencial y remoto) | HTML5 semántico, WCAG 2.1 AA, Tailwind CSS responsive, estándares vía `modern-web-guidance`, fachada ligera bajo demanda y `aspect-video` (CLS = 0) para embeds | Snapshot a11y, flujos reales y capturas con `chrome-verifier` |
+| **Portability** | Evitar lock-in tecnológico y facilitar escalado en LATAM | Interfaces de dominio (`EventRepository`, `MapProvider`, `StreamingProvider`), estándares web nativos, Astro + `@astrojs/node`, `pnpm` | Inspección de dependencias y separación `domain/` vs `infrastructure/` |
