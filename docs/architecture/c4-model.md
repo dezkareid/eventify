@@ -25,7 +25,7 @@ flowchart TB
     Eventify["Plataforma Eventify\n[Sistema de Software]\nConecta usuarios con eventos\npresenciales y remotos en LATAM"]
 
     subgraph Externos["Sistemas Externos (Integraciones Actuales / Futuras)"]
-        Maps["Proveedor de Mapas (Google Maps / OSM)\n[Sistema Externo]\nEmbed interactivo e indicaciones para venues"]
+        Maps["OpenStreetMap (Embed Gratuito)\n[Sistema Externo]\nMapa abierto sin API key e indicaciones para venues"]
         Streaming["Proveedor de Streaming\n[Sistema Externo]\nTransmision de eventos remotos"]
         Pagos["Pasarela de Pagos LATAM\n[Sistema Externo]\nCobros y facturacion multi-moneda"]
         Notif["Servicio de Notificaciones\n[Sistema Externo]\nCorreos y recordatorios"]
@@ -91,12 +91,12 @@ flowchart LR
     subgraph Domain["Dominio (apps/web/src/domain)"]
         EventTypes["events/event.types.ts\n[Modelos TS]\nEventItem, EventModality, EventGeoLocation"]
         EventRepo["events/event.repository.ts\n[Interfaz / Puerto]\nfindAll, findById, create"]
-        MapProviderPort["maps/map-provider.ts\n[Interfaz / Puerto — Planificado]\nbuildEmbedUrl, buildDirectionsUrl"]
+        MapProviderPort["maps/map-provider.ts\n[Interfaz / Puerto — Planificado]\nresolveMapData, resolveFallbackSearchUrl"]
     end
 
     subgraph Infrastructure["Infraestructura (apps/web/src/infrastructure)"]
         InMemoryRepo["db/in-memory-event.repository.ts\n[Adaptador]\nImplementacion en memoria + seed LATAM"]
-        MapProviders["maps/google-maps & osm.provider.ts\n[Adaptadores — Planificado]\nGoogle Maps Embed + fallback OSM"]
+        MapProviders["maps/openstreetmap.provider.ts\n[Adaptador — Planificado]\nOpenStreetMap Embed gratuito sin API key"]
     end
 
     HomePage --> BaseLayout

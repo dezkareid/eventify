@@ -29,3 +29,30 @@
 .event-card-container {
   container-type: inline-size;
 }
+
+.event-card-container:has(a.event-card-link) {
+  position: relative;
+}
+
+.event-card-container a.event-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.event-card-container a.event-card-link:focus-visible {
+  outline: none;
+}
+
+.event-card-container:has(a.event-card-link:focus-visible) {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+
+.event-card-container:has(a.event-card-link:hover) {
+  border-color: var(--color-brand-600);
+}
+
+.event-location-container {
+  container-type: inline-size;
+}

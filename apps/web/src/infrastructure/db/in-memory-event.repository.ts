@@ -1,5 +1,10 @@
 import type { EventRepository } from '../../domain/events/event.repository';
-import type { CreateEventInput, EventFilter, EventItem } from '../../domain/events/event.types';
+import {
+  isValidGeoCoordinates,
+  type CreateEventInput,
+  type EventFilter,
+  type EventItem,
+} from '../../domain/events/event.types';
 
 const SEED_EVENTS: EventItem[] = [
   {
@@ -17,6 +22,11 @@ const SEED_EVENTS: EventItem[] = [
     priceUsd: 0,
     capacity: 600,
     registeredCount: 482,
+    geo: {
+      latitude: -34.6063,
+      longitude: -58.4109,
+      address: 'Sarmiento 3131, C1196AAG Buenos Aires, Argentina',
+    },
   },
   {
     id: 'evt-ux-latam-remoto',
@@ -49,6 +59,11 @@ const SEED_EVENTS: EventItem[] = [
     priceUsd: 49,
     capacity: 300,
     registeredCount: 215,
+    geo: {
+      latitude: 4.6295,
+      longitude: -74.0906,
+      address: 'Calle 24 #38-47, Bogota, Colombia',
+    },
   },
   {
     id: 'evt-web-standards-cdmx',
@@ -65,14 +80,23 @@ const SEED_EVENTS: EventItem[] = [
     priceUsd: 0,
     capacity: 180,
     registeredCount: 134,
+    geo: {
+      latitude: 19.427,
+      longitude: -99.1677,
+      address: 'Av. Paseo de la Reforma 222, Juarez, Cuauhtemoc, 06600 Ciudad de Mexico, Mexico',
+    },
   },
 ];
+
+function cloneEvent(item: EventItem): EventItem {
+  return item.geo ? { ...item, geo: { ...item.geo } } : { ...item };
+}
 
 class InMemoryEventRepository implements EventRepository {
   private readonly events: EventItem[];
 
   constructor(initialData: readonly EventItem[] = SEED_EVENTS) {
-    this.events = initialData.map((item) => ({ ...item }));
+    this.events = initialData.map(cloneEvent);
   }
 
   async findAll(filter?: EventFilter): Promise<readonly EventItem[]> {
@@ -86,16 +110,25 @@ class InMemoryEventRepository implements EventRepository {
         }
         return true;
       })
-      .map((item) => ({ ...item }));
+      .map(cloneEvent);
   }
 
   async findById(id: string): Promise<EventItem | null> {
     const found = this.events.find((event) => event.id === id);
-    return found ? { ...found } : null;
+    return found ? cloneEvent(found) : null;
   }
 
   async create(input: CreateEventInput): Promise<EventItem> {
     const id = `evt-${crypto.randomUUID().slice(0, 8)}`;
+    const sanitizedGeo =
+      input.geo && isValidGeoCoordinates(input.geo)
+        ? {
+            latitude: input.geo.latitude,
+            longitude: input.geo.longitude,
+            address: input.geo.address.trim(),
+          }
+        : undefined;
+
     const created: EventItem = {
       id,
       title: input.title.trim(),
@@ -110,10 +143,11 @@ class InMemoryEventRepository implements EventRepository {
       priceUsd: Math.max(0, input.priceUsd),
       capacity: Math.max(1, Math.floor(input.capacity)),
       registeredCount: 0,
+      ...(sanitizedGeo ? { geo: sanitizedGeo } : {}),
     };
 
     this.events.unshift(created);
-    return { ...created };
+    return cloneEvent(created);
   }
 }
 

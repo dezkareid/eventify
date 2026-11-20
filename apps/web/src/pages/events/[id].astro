@@ -1,0 +1,139 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EventLocationMap from '../../components/EventLocationMap.astro';
+import type { EventModality } from '../../domain/events/event.types';
+import { eventRepository } from '../../infrastructure/db/in-memory-event.repository';
+
+const rawId = Astro.params.id?.trim() ?? '';
+const isSafeId = rawId.length > 0 && rawId.length <= 100 && /^[a-zA-Z0-9_-]+$/.test(rawId);
+
+const event = isSafeId ? await eventRepository.findById(rawId) : null;
+
+if (!event) {
+  Astro.response.status = 404;
+}
+
+const modalityLabels: Record<EventModality, string> = {
+  presencial: 'Presencial',
+  remoto: 'Remoto',
+  hibrido: 'Híbrido',
+};
+
+const modalityStyles: Record<EventModality, string> = {
+  presencial: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+  remoto: 'bg-sky-50 text-sky-800 ring-sky-200',
+  hibrido: 'bg-violet-50 text-violet-800 ring-violet-200',
+};
+
+function formatDate(dateIso: string): string {
+  return new Intl.DateTimeFormat('es-419', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(new Date(dateIso));
+}
+
+function formatPrice(priceUsd: number): string {
+  return priceUsd === 0 ? 'Gratuito' : `USD $${priceUsd}`;
+}
+
+const pageTitle = event
+  ? `${event.title} — ${event.city} | Eventify`
+  : 'Evento no encontrado | Eventify';
+
+const pageDescription = event
+  ? `${event.summary} (${modalityLabels[event.modality]} · ${event.city}, ${event.country}).`
+  : 'El evento que buscas no existe o ya no está disponible en Eventify.';
+
+const availableSeats = event ? Math.max(0, event.capacity - event.registeredCount) : 0;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:py-12">
+    <nav aria-label="Ruta de navegación" class="mb-6">
+      <a
+        href="/#eventos"
+        class="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-900 transition-colors"
+      >
+        <span aria-hidden="true">←</span>
+        <span>Volver a eventos</span>
+      </a>
+    </nav>
+
+    {!event ? (
+      <section class="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xs space-y-4">
+        <p class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+          Error 404
+        </p>
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">
+          No encontramos este evento
+        </h1>
+        <p class="mx-auto max-w-lg text-base text-slate-600 leading-relaxed">
+          Es posible que el enlace esté incompleto o que el evento haya sido retirado del catálogo.
+          Explora los próximos eventos presenciales, híbridos y remotos disponibles en LATAM.
+        </p>
+        <div class="pt-2">
+          <a
+            href="/#eventos"
+            class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+          >
+            Explorar catálogo de eventos
+          </a>
+        </div>
+      </section>
+    ) : (
+      <article class="space-y-8">
+        <header class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-5">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span
+              class:list={[
+                'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset',
+                modalityStyles[event.modality],
+              ]}
+            >
+              {modalityLabels[event.modality]}
+            </span>
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-600">
+              {event.category}
+            </span>
+          </div>
+
+          <h1 class="text-[clamp(1.75rem,1.25rem+2vw,2.75rem)] font-extrabold tracking-tight text-slate-900 leading-tight">
+            {event.title}
+          </h1>
+
+          <p class="text-base sm:text-lg text-slate-600 leading-relaxed">
+            {event.summary}
+          </p>
+
+          <dl class="grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt class="text-xs font-medium text-slate-500">Fecha y hora</dt>
+              <dd class="mt-1 text-sm font-semibold text-slate-900">
+                <time datetime={event.dateIso}>{formatDate(event.dateIso)}</time>
+                <span class="mt-0.5 block text-xs font-normal text-slate-500">{event.timezone}</span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-slate-500">Ciudad / Región</dt>
+              <dd class="mt-1 text-sm font-semibold text-slate-900">
+                {event.city}, {event.country}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-slate-500">Entrada</dt>
+              <dd class="mt-1 text-sm font-bold text-brand-700">{formatPrice(event.priceUsd)}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-slate-500">Cupos disponibles</dt>
+              <dd class="mt-1 text-sm font-semibold text-slate-900">
+                {availableSeats} de {event.capacity}
+              </dd>
+            </div>
+          </dl>
+        </header>
+
+        <EventLocationMap event={event} />
+      </article>
+    )}
+  </div>
+</BaseLayout>

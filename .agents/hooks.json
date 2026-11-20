@@ -1,0 +1,11 @@
+{
+  "session-token-tracker": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node ./hooks/track-session-tokens.mjs",
+        "timeout": 10
+      }
+    ]
+  }
+}

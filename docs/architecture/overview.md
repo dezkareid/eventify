@@ -22,7 +22,7 @@ Para el desglose formal por niveles (Contexto, Contenedores y Componentes), cons
 
 ## 2. Arquitectura en Capas (Orientada a *Portability*)
 
-La interfaz web y los endpoints de Astro nunca acceden directamente a la implementación concreta de almacenamiento ni a SDKs propietarios de terceros. Toda interacción pasa por contratos en `src/domain/` (`EventRepository`, `MapProvider`), permitiendo reemplazar la **In-Memory Database** por PostgreSQL/LibSQL o intercambiar el proveedor de mapas (Google Maps / OpenStreetMap) sin tocar las vistas.
+La interfaz web y los endpoints de Astro nunca acceden directamente a la implementación concreta de almacenamiento ni a SDKs propietarios de terceros. Toda interacción pasa por contratos en `src/domain/` (`EventRepository`, `MapProvider`), permitiendo reemplazar la **In-Memory Database** por PostgreSQL/LibSQL o intercambiar el proveedor de mapas (por defecto **OpenStreetMap** gratuito y sin API key) sin tocar las vistas.
 
 ```mermaid
 flowchart TB
@@ -41,7 +41,7 @@ flowchart TB
 
     subgraph Infra["Capa de Infraestructura (Intercambiable)"]
         InMem["InMemoryEventRepository (in-memory-event.repository.ts)"]
-        MapAdapters["Adaptadores de Mapas (GoogleMaps / OpenStreetMap)"]
+        MapAdapters["OpenStreetMapEmbedProvider (openstreetmap.provider.ts)"]
     end
 
     Pages --> Layouts
